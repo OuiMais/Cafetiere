@@ -1,4 +1,4 @@
-"""
+/*
     Projet : CAFETIERE_AUTO
     Date Creation : 
     Date Revision : 22/08/2023
@@ -6,7 +6,7 @@
     Auteur: Florian HOFBAUER
     Contact : 
     But : Fichier unique
-"""
+*/
 
 #include <Wire.h>
 #include <TimeLib.h>
