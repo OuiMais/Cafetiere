@@ -1,3 +1,13 @@
+"""
+    Projet : CAFETIERE_AUTO
+    Date Creation : 
+    Date Revision : 22/08/2023
+    Entreprise : 3SC4P3
+    Auteur: Florian HOFBAUER
+    Contact : 
+    But : Fichier unique
+"""
+
 #include <Wire.h>
 #include <TimeLib.h>
 #include <DS1307RTC.h>
