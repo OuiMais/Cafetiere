@@ -38,9 +38,6 @@ int pinRelay = {7};
 bool buttonUpState, buttonDownState, buttonRightState, buttonLeftState, buttonSelectState;
 
 bool manual = 0;
-bool test = 0;
-int menu, sousMenu;
-int chap;
 int caseHour;
 int activation = 1, durationHour = 0, durationMinute = 30, durationSecond = 0;
 int alarmHour = 6, alarmMinute = 30, alarmSecond = 0;
