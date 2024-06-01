@@ -1,7 +1,7 @@
 /*
     Projet : CAFETIERE_AUTO
-    Date Creation : 
-    Date Revision : 22/08/2023
+    Date Creation : 22/08/2023
+    Date Revision : 30/05/2024
     Entreprise : 3SC4P3
     Auteur: Florian HOFBAUER
     Contact : 
@@ -567,13 +567,13 @@ void SousMenu(int chap) {
   sousMenu = 0;
 }
 
-
 void print2digits(int number) {
   if (number >= 0 && number < 10) {
     Screen.write('0');
   }
   Screen.print(number);
 }
+
 void manuel(int manual) {
   if (manual == 1) {
     Screen.setCursor(14, 0);
@@ -622,11 +622,18 @@ void alarme() {
   }
 }
 
+void printDay(int weekday){
+  String week[7] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+  
+  return week[weekday - 1]
+}
+
 void loop() {
   tmElements_t tm;
 
   etatBout();
   if (RTC.read(tm)) {
+    Screen.print(printDay(tm.Weekday))
     Screen.setCursor(4, 0);
     print2digits(tm.Hour);
     Screen.write(':');
@@ -662,7 +669,7 @@ void loop() {
       //Reboot pour éviter les problèmes d'écran qui fige
     }
   }
-  delay(100);
+  delay(300);
 }
 
 void writeIntIntoEEPROM(int address, int number) { 
