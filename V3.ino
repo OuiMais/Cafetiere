@@ -346,6 +346,10 @@ void setAlarm() {
                     alarmMinute++;
                     if (alarmMinute == 60) {
                         alarmMinute = 00;
+                        alarmHour++;
+                        if (alarmHour == 24) {
+                            alarmHour = 00;
+                        }
                     }
                     delay(150);
                     break;
@@ -354,6 +358,14 @@ void setAlarm() {
                     alarmSecond++;
                     if (alarmSecond == 60) {
                         alarmSecond = 00;
+                        alarmMinute++;
+                        if (alarmMinute == 60) {
+                            alarmMinute = 00;
+                            alarmHour++;
+                            if (alarmHour == 24) {
+                                alarmHour = 00;
+                            }
+                        }
                     }
                     delay(150);
                     break;
@@ -377,6 +389,10 @@ void setAlarm() {
                     alarmMinute--;
                     if (alarmMinute == -1) {
                         alarmMinute = 59;
+                        alarmHour--;
+                        if (alarmHour == -1) {
+                            alarmHour = 23;
+                        }
                     }
                     delay(150);
                     break;
@@ -385,6 +401,14 @@ void setAlarm() {
                     alarmSecond--;
                     if (alarmSecond == -1) {
                         alarmSecond = 59;
+                        alarmMinute--;
+                        if (alarmMinute == -1) {
+                            alarmMinute = 59;
+                            alarmHour--;
+                            if (alarmHour == -1) {
+                                alarmHour = 23;
+                            }
+                        }
                     }
                     delay(150);
                     break;
@@ -452,6 +476,10 @@ void setDuration() {
                     if (durationSecond == 60) {
                         durationSecond = 00;
                         durationMinute++;
+                        if (durationMinute == 60) {
+                            durationMinute = 00;
+                            durationHour++;
+                        }
                     }
                     delay(150);
                     break;
@@ -467,7 +495,6 @@ void setDuration() {
                     durationHour--;
                     if (durationHour == -1) {
                         durationHour = 00;
-                        durationMinute = 59;
                     }
                     delay(150);
                     break;
@@ -477,6 +504,9 @@ void setDuration() {
                     if (durationMinute == -1) {
                         durationMinute = 59;
                         durationHour--;
+                        if (durationHour == -1) {
+                            durationHour = 00;
+                        }
                     }
                     delay(150);
                     break;
@@ -486,6 +516,13 @@ void setDuration() {
                     if (durationSecond == -1) {
                         durationSecond = 59;
                         durationMinute--;
+                        if (durationMinute == -1) {
+                            durationMinute = 59;
+                            durationHour--;
+                            if (durationHour == -1) {
+                                durationHour = 00;
+                            }
+                        }
                     }
                     delay(150);
                     break;
