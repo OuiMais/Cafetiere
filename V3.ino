@@ -1,7 +1,7 @@
 /*
     Projet : CAFETIERE_AUTO
     Date Creation : 22/08/2023
-    Date Revision : 01/06/2024
+    Date Revision : 04/06/2024
     Entreprise : 3SC4P3
     Auteur: Florian HOFBAUER
     Contact :
@@ -45,17 +45,22 @@ int alarmHour = 6, alarmMinute = 30, alarmSecond = 0;
 /****************************************************************************
  *                           Structure for menu
  ****************************************************************************/
+
+enum menuFunction { ALARME, DUREE, ACTIVATION, MANUEL, NUL };
+
 struct MenuItem {
     String name;
+    menuFunction fct;
     MenuItem *subMenu;
     int subMenuLength;
 };
 
-MenuItem subMenuReglage[] = { {"ALARME", nullptr, 0}, {"DUREE", nullptr, 0} };
-MenuItem mainMenu[] = { {"REGLAGES", subMenuReglage, 2}, {"ACTIVATION", nullptr, 0}, {"MANUEL", nullptr, 0} };
+MenuItem subMenuReglage[] = { {"ALARME", ALARME, nullptr, 0}, {"DUREE", DUREE, nullptr, 0} };
+MenuItem mainMenu[] = { {"REGLAGES", NUL, subMenuReglage, 2}, {"ACTIVATION", ACTIVATION, nullptr, 0}, {"MANUEL", MANUEL, nullptr, 0} };
 
-int mainMenuLength = sizeof(mainMenu);
 MenuItem* currentMenu = mainMenu;
+int mainMenuLength = sizeof(mainMenu) / 10;
+int currentMenuIndex = 0;
 int currentMenuLength = mainMenuLength;
 int currentLevel = 0; // Level of menu
 int parentMenuIndex = 0; // Index of parent menu for sub menu back
@@ -92,17 +97,18 @@ void setup() {
 
 void loop() {
     tmElements_t tm;
-
+    
     checkButton();
     if (RTC.read(tm)) {
-        Screen.print(printDay(tm.Wday));
         Screen.setCursor(4, 0);
         print2digits(tm.Hour);
         Screen.write(':');
         print2digits(tm.Minute);
         Screen.write(':');
         print2digits(tm.Second);
-        Screen.setCursor(3, 1);
+        Screen.setCursor(0, 1);
+        Screen.print(printDay(tm.Wday));
+        Screen.setCursor(5, 1);
         print2digits(tm.Day);
         Screen.write('/');
         print2digits(tm.Month);
@@ -129,7 +135,7 @@ void loop() {
             // Reboot pour éviter les problèmes d'écran qui fige
         }
     }
-    delay(300);
+    delay(100);
 }
 
 void checkButton() {
@@ -149,7 +155,7 @@ void displayMenu() {
     */
     Screen.clear();
     Screen.print(currentMenu[currentMenuIndex].name);
-    delay(500);
+    delay(250);
     checkButton();
 }
 
@@ -159,17 +165,17 @@ void activateMenu() {
     */
     checkButton();
     if (!buttonUpState) {
-        currentMenuIndex = (currentMenuIndex + 1) % currentMenuLength;
+        currentMenuIndex = 1;
         displayMenu();
         changeMenu();
     }
     if (!buttonDownState) {
-        currentMenuIndex = (currentMenuIndex - 1) % currentMenuLength;
+        currentMenuIndex = currentMenuLength - 1;
         displayMenu();
         changeMenu();
     }
     if (!buttonSelectState) {
-        currentMenuIndex = (currentMenuIndex + 1) % currentMenuLength;
+        currentMenuIndex = 0;
         displayMenu();
         changeMenu();
     }
@@ -188,22 +194,28 @@ void changeMenu() {
         }
         if (!buttonDownState) {
             currentMenuIndex = (currentMenuIndex - 1) % currentMenuLength;
+            if (currentMenuIndex < 0) {
+                currentMenuIndex = currentMenuLength - 1;
+            }
             displayMenu();
         }
         if (!buttonLeftState) {
             if (currentLevel > 0) {
                 currentMenu = mainMenu;
+                currentMenuLength = mainMenuLength;
 
                 for (int i = 0; i < currentLevel - 1; i++) {
+                    currentMenuLength = currentMenu[parentMenuIndex].subMenuLength;
                     currentMenu = currentMenu[parentMenuIndex].subMenu;
                 }
-
-                currentMenuLength = sizeof(currentMenu) / sizeof(currentMenu[0]);
+                
                 currentMenuIndex = parentMenuIndex;
                 currentLevel--;
                 displayMenu();
             }
             else {
+                Screen.clear();
+                currentMenuIndex = 0;
                 return;
             }
         }
@@ -211,8 +223,9 @@ void changeMenu() {
             if (currentMenu[currentMenuIndex].subMenu != nullptr) {
                 // Go to sub menu
                 parentMenuIndex = currentMenuIndex;
-                currentMenu = currentMenu[currentMenuIndex].subMenu;
                 currentMenuLength = currentMenu[currentMenuIndex].subMenuLength;
+                currentMenu = currentMenu[currentMenuIndex].subMenu;
+
                 currentMenuIndex = 0;
                 currentLevel++;
                 displayMenu();
@@ -220,27 +233,36 @@ void changeMenu() {
             else {
                 // Action à réaliser lors de la sélection d'un élément du menu
                 Screen.clear();
-                switch (currentMenu[currentMenuIndex].name) {
-                    case "ALARME": {
+                switch (currentMenu[currentMenuIndex].fct) {
+                    case ALARME: {
                         setAlarm();
+                        saveData();
                         break;
                     }
-                    case "DUREE": {
+                    case DUREE: {
                         setDuration();
+                        saveData();
                         break;
                     }
-                    case "ACTIVATION": {
+                    case ACTIVATION: {
                         activationFunction();
+                        saveData();
                         break;
                     }
-                    case "MANUEL": {
+                    case MANUEL: {
                         manualFunction();
                         break;
                     }
                     default: {
-                        return;
+                        break;
                     }
                 }
+                currentMenu = mainMenu;
+                currentMenuLength = mainMenuLength;
+                currentMenuIndex = 0;
+                currentLevel = 0;
+                Screen.clear();
+                return;
             }
         } 
     }
@@ -263,45 +285,26 @@ void blinkingHour(int hour, int minute, int second) {
     Screen.print(":");
     print2digits(second);
 
-    delay(10);
-
     switch (caseHour) { // Blink at editing position
         case 0: {
             Screen.setCursor(15, 0);
             Screen.print("H");
-            Screen.setCursor(4, 1);
-            Screen.print("  ");
             break;
         }
         case 1: {
             Screen.setCursor(15, 0);
             Screen.print("M");
-            Screen.setCursor(7, 1);
-            Screen.print("  ");
             break;
         }
         case 2: {
             Screen.setCursor(15, 0);
             Screen.print("S");
-            Screen.setCursor(10, 1);
-            Screen.print("    ");
             break;
         }
         default : {
             break;
         }
     }
-
-    delay(10);
-
-    Screen.setCursor(4, 1);
-    print2digits(hour);
-    Screen.print(":");
-    print2digits(minute);
-    Screen.print(":");
-    print2digits(second);
-
-    delay(10);
 }
 
 void setAlarm() {
@@ -315,20 +318,20 @@ void setAlarm() {
 
     while (true) {
         checkButton();
+        delay(150);
         if (!buttonRightState) {
             caseHour++;
             caseHour = (caseHour + 3) % 3;
-            delay(500);
+            delay(150);
         }
         if (!buttonLeftState) {
             caseHour--;
             caseHour = (caseHour + 3) % 3;
-            delay(500);
+            delay(150);
         }
 
-        blinkingHour(alarmHour, alarmMinute, alarmSecond)
+        blinkingHour(alarmHour, alarmMinute, alarmSecond);
 
-        
         if (!buttonUpState) {
             switch (caseHour) { // Blink at editing position
                 case 0: {
@@ -391,11 +394,12 @@ void setAlarm() {
                 }
             }
         }
+        checkButton();
+        delay(100);
         if (!buttonSelectState) {
             Screen.clear();
             Screen.setCursor(1, 0);
             Screen.print("ALARME REGLEE");
-            caseHour = 4;
             delay(1000);
             return;
         }
@@ -413,15 +417,16 @@ void setDuration() {
 
     while (true) {
         checkButton();
+        delay(150);
         if (!buttonRightState) {
             caseHour++;
             caseHour = (caseHour + 3) % 3;
-            delay(500);
+            delay(150);
         }
         if (!buttonLeftState) {
             caseHour--;
             caseHour = (caseHour + 3) % 3;
-            delay(500);
+            delay(150);
         }
         
         blinkingHour(durationHour, durationMinute, durationSecond);
@@ -491,11 +496,11 @@ void setDuration() {
             }
         }
         checkButton();
+        delay(100);
         if (!buttonSelectState) {
             Screen.clear();
             Screen.setCursor(2, 0);
             Screen.print("DUREE REGLEE");
-            caseHour = 4;
             delay(1000);
             return;
         }
@@ -509,6 +514,7 @@ void activationFunction() {
     while (true) {
         Screen.setCursor(2, 0);
         Screen.print("PRESS SELECT");
+        delay(250);
         checkButton();
         if (activation == 0) {
             if (!buttonSelectState) {
@@ -531,7 +537,6 @@ void activationFunction() {
                 return;
             }
         }
-        checkButton();
         if (activation == 1) {
             if (!buttonSelectState) {
                 Screen.clear();
@@ -555,7 +560,6 @@ void activationFunction() {
         }
         checkButton();
     }
-
 }
 
 void manualFunction() {
@@ -569,6 +573,7 @@ void manualFunction() {
             Screen.print("MANUAL");
             Screen.setCursor(7, 1);
             Screen.print("ON");
+            delay(250);
             checkButton();
 
             if (!buttonSelectState) {
@@ -592,6 +597,7 @@ void manualFunction() {
             Screen.print("MANUAL");
             Screen.setCursor(7, 1);
             Screen.print("OFF");
+            delay(250);
             checkButton();
 
             if (!buttonSelectState) {
@@ -667,9 +673,9 @@ void alarm(int hour, int minute, int second) {
     delay(100);
 
     // Set ON if we pass alarm time 
-    if (hour >= alarmHour && hour < endHour) {
-        if (minute >= alarmMinute && minute < endMinute) {
-            if (second >= alarmSecond && second < endSecond) {
+    if (hour >= alarmHour && hour <= endHour) {
+        if (minute >= alarmMinute && minute <= endMinute) {
+            if (second >= alarmSecond && second <= endSecond) {
                 digitalWrite(pinRelay, HIGH);
                 Screen.setCursor(13, 0);
                 Screen.print("=>");
