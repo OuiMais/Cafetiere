@@ -1,7 +1,7 @@
 /*
     Projet : CAFETIERE_AUTO
     Date Creation : 22/08/2023
-    Date Revision : 04/06/2024
+    Date Revision : 06/06/2024
     Entreprise : 3SC4P3
     Auteur: Florian HOFBAUER
     Contact :
@@ -37,10 +37,13 @@ int pinRelay = {7};
 // Variables for pin
 bool buttonUpState, buttonDownState, buttonRightState, buttonLeftState, buttonSelectState;
 
-bool manual = 0;
+bool manual = 0, previousManual = 0;;
 int caseHour;
+bool setOnMode = 0, previousSetOnMode = 0;
 int activation = 1, durationHour = 0, durationMinute = 30, durationSecond = 0;
 int alarmHour = 6, alarmMinute = 30, alarmSecond = 0;
+int manualHour = 0, manualMinute = 0, manualSecond = 0, firstTime = 0;
+int remainHour = 0, remainMinute = 0, remainSecond = 0;
 
 /****************************************************************************
  *                           Structure for menu
@@ -106,20 +109,64 @@ void loop() {
         print2digits(tm.Minute);
         Screen.write(':');
         print2digits(tm.Second);
-        Screen.setCursor(0, 1);
-        Screen.print(printDay(tm.Wday));
-        Screen.setCursor(5, 1);
-        print2digits(tm.Day);
-        Screen.write('/');
-        print2digits(tm.Month);
-        Screen.write('/');
-        Screen.print(tmYearToCalendar(tm.Year));
+        
         activateMenu();
-        printManuel(manual);
         if (activation == 1) {
             Screen.setCursor(15, 0);
             Screen.print("*");
             alarm(tm.Hour, tm.Minute, tm.Second);
+        }
+
+        if (manual == 1) {
+            // Calculate time from manual ON
+            if (previousManual != manual) {
+                // If manual value change, set first time for calculation
+                firstTime = tm.Second + tm.Minute * 60 + 3600 * tm.Hour + 1;
+                previousManual = manual;
+            }
+            else {
+                int nowTime = tm.Second + tm.Minute * 60 + 3600 * tm.Hour;
+                int remainTime = nowTime - firstTime;
+
+                remainSecond = remainTime % 60;
+                remainMinute = (remainTime - remainTime % 60) % 3600 / 60;
+                remainHour = (remainTime - (remainTime - remainTime % 60) % 3600) / 3600;
+            }
+            
+            Screen.setCursor(14, 0);
+            Screen.print("ON");
+        }
+        else {
+            if (previousManual != manual) {
+                firstTime = 0;
+                previousManual = manual;
+            }
+        }
+
+        if (!setOnMode && !manual) {
+            if (previousSetOnMode != setOnMode) {
+                previousSetOnMode = setOnMode;
+            }
+            Screen.setCursor(0, 1);
+            Screen.print(printDay(tm.Wday));
+            Screen.setCursor(5, 1);
+            print2digits(tm.Day);
+            Screen.write('/');
+            print2digits(tm.Month);
+            Screen.write('/');
+            Screen.print(tmYearToCalendar(tm.Year));
+        }
+        else {
+            if (previousSetOnMode != setOnMode) {
+                Screen.clear();
+                previousSetOnMode = setOnMode;
+            }
+            Screen.setCursor(4, 1);
+            print2digits(remainHour);
+            Screen.write(':');
+            print2digits(remainMinute);
+            Screen.write(':');
+            print2digits(remainSecond);
         }
 
         if (tm.Hour == 2 && tm.Minute == 0 && tm.Second == 0) {
@@ -168,16 +215,19 @@ void activateMenu() {
         currentMenuIndex = 1;
         displayMenu();
         changeMenu();
+        return;
     }
     if (!buttonDownState) {
         currentMenuIndex = currentMenuLength - 1;
         displayMenu();
         changeMenu();
+        return;
     }
     if (!buttonSelectState) {
         currentMenuIndex = 0;
         displayMenu();
         changeMenu();
+        return;
     }
     delay(10);
 }
@@ -670,16 +720,6 @@ void print2digits(int number) {
     Screen.print(number);
 }
 
-void printManuel(int manual) {
-    /*
-        Function to print ON in case of it's manually set to ON
-    */
-    if (manual == 1) {
-        Screen.setCursor(14, 0);
-        Screen.print("ON");
-    }
-}
-
 void alarm(int hour, int minute, int second) {
     /*
         Activation and desactivation of module with time if it's set
@@ -707,16 +747,23 @@ void alarm(int hour, int minute, int second) {
         endHour = endHour - 24;
     }
 
-    delay(100);
+    // Calculate remaining time 
+    int endTime = endSecond + 60 * endMinute + 3600 * endHour;
+    int nowTime = second + minute * 60 + 3600 * hour;
+    int remainTime = endTime - nowTime;
+
+    remainSecond = remainTime % 60;
+    remainMinute = (remainTime - remainTime % 60) % 3600 / 60;
+    remainHour = (remainTime - (remainTime - remainTime % 60) % 3600) / 3600;
 
     // Set ON if we pass alarm time 
-    if (hour >= alarmHour && hour <= endHour) {
-        if (minute >= alarmMinute && minute <= endMinute) {
-            if (second >= alarmSecond && second <= endSecond) {
+    if (hour == alarmHour) {
+        if (minute == alarmMinute) {
+            if (second == alarmSecond) {
+                setOnMode = 1;
                 digitalWrite(pinRelay, HIGH);
                 Screen.setCursor(13, 0);
                 Screen.print("=>");
-                delay(100);
             }
         }
     }
@@ -725,6 +772,7 @@ void alarm(int hour, int minute, int second) {
     if (hour == endHour) {
         if (minute == endMinute) {
             if (second == endSecond) {
+                setOnMode = 0;
                 Screen.clear();
                 digitalWrite(pinRelay, LOW);
                 activation = 0; // set off activation
