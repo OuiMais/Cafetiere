@@ -1,7 +1,7 @@
 /*
     Projet : CAFETIERE_AUTO
     Date Creation : 22/08/2023
-    Date Revision : 06/06/2024
+    Date Revision : 07/06/2024
     Entreprise : 3SC4P3
     Auteur: Florian HOFBAUER
     Contact :
@@ -49,7 +49,7 @@ int remainHour = 0, remainMinute = 0, remainSecond = 0;
  *                           Structure for menu
  ****************************************************************************/
 
-enum menuFunction { ALARME, DUREE, ACTIVATION, MANUEL, NUL };
+enum menuFunction { ALARME, DUREE, ACTIVATION, MANUEL, HORLOGE, NUL };
 
 struct MenuItem {
     String name;
@@ -58,8 +58,8 @@ struct MenuItem {
     int subMenuLength;
 };
 
-MenuItem subMenuReglage[] = { {"ALARME", ALARME, nullptr, 0}, {"DUREE", DUREE, nullptr, 0} };
-MenuItem mainMenu[] = { {"REGLAGES", NUL, subMenuReglage, 2}, {"ACTIVATION", ACTIVATION, nullptr, 0}, {"MANUEL", MANUEL, nullptr, 0} };
+MenuItem subMenuReglage[] = { {"ALARME", ALARME, nullptr, 0}, {"DUREE", DUREE, nullptr, 0}, {"HORLOGE", HORLOGE, nullptr, 0} };
+MenuItem mainMenu[] = { {"REGLAGES", NUL, subMenuReglage, 3}, {"ACTIVATION", ACTIVATION, nullptr, 0}, {"MANUEL", MANUEL, nullptr, 0} };
 
 MenuItem* currentMenu = mainMenu;
 int mainMenuLength = sizeof(mainMenu) / 10;
@@ -301,6 +301,10 @@ void changeMenu() {
                     }
                     case MANUEL: {
                         manualFunction();
+                        break;
+                    }
+                    case HORLOGE: {
+                        setTime();
                         break;
                     }
                     default: {
@@ -704,6 +708,325 @@ void manualFunction() {
             }
         }
     }
+}
+
+void setTime() {
+    /*
+        Function to change date and time on RTC
+    */
+    Screen.clear();
+    int wday, day, month, year, hour, minute, second;
+    tmElements_t tm;
+
+    if (RTC.read(tm)) {
+        wday = tm.Wday;
+        day = tm.Day;
+        month = tm.Month;
+        year = tm.Year;
+        hour = tm.Hour;
+        minute = tm.Minute;
+        second = tm.Second;
+    }
+
+    while(true) {
+        // Part to change weekday
+        checkButton();
+        delay(150);
+        Screen.setCursor(4, 0);
+        Screen.print("Set Day");
+        Screen.setCursor(6, 1);
+        Screen.print(printDay(wday));
+
+        if (!buttonUpState) {
+            wday++;
+            if (wday == 8) {
+                wday = 1;
+            }
+            if (wday == 0) {
+                wday = 7;
+            }
+        }
+
+        if (!buttonDownState) {
+            wday--;
+            if (wday == 8) {
+                wday = 1;
+            }
+            if (wday == 0) {
+                wday = 7;
+            }
+        }
+
+        checkButton();
+        delay(100);
+        if (!buttonSelectState) {
+            break;
+        }
+    }
+
+    Screen.clear();
+    caseHour = 0;
+
+    while(true) {
+        // Part to change date
+        checkButton();
+        delay(150);
+        Screen.setCursor(4, 0);
+        Screen.print("Set Date");
+        Screen.setCursor(3, 1);
+        print2digits(day);
+        Screen.write('/');
+        print2digits(month);
+        Screen.write('/');
+        Screen.print(tmYearToCalendar(year));
+
+        if (!buttonRightState) {
+            caseHour++;
+            caseHour = (caseHour + 3) % 3;
+            delay(150);
+        }
+        if (!buttonLeftState) {
+            caseHour--;
+            caseHour = (caseHour + 3) % 3;
+            delay(150);
+        }
+
+        if (!buttonUpState) {
+            switch (caseHour) { // Blink at editing position
+                case 0: {
+                    day++;
+                    int lastDay = calculateMaxDayOfMonth(month, tmYearToCalendar(year));
+                    if (day == lastDay + 1) {
+                        day = 1;
+                    }
+                    delay(150);
+                    break;
+                }
+                case 1: {
+                    month++;
+                    if (month == 13) {
+                        month = 1;
+                    }
+                    delay(150);
+                    break;
+                }
+                case 2: {
+                    year++;
+                    delay(150);
+                    break;
+                }
+                default : {
+                    break;
+                }
+            }
+        }
+        if (!buttonDownState) {
+            switch (caseHour) { // Blink at editing position
+                case 0: {
+                    day--;
+                    int lastDay = calculateMaxDayOfMonth(month, tmYearToCalendar(year));
+                    if (day == 0) {
+                        day = lastDay;
+                    }
+                    delay(150);
+                    break;
+                }
+                case 1: {
+                    month--;
+                    if (month == 0) {
+                        month = 12;
+                    }
+                    delay(150);
+                    break;
+                }
+                case 2: {
+                    year--;
+                    delay(150);
+                    break;
+                }
+                default : {
+                    break;
+                }
+            }
+        }
+
+        checkButton();
+        delay(100);
+        if (!buttonSelectState) {
+            break;
+        }
+    }
+
+    Screen.clear();
+    caseHour = 0;
+
+    while (true) {
+        // Part to change time
+        checkButton();
+        delay(150);
+        Screen.setCursor(4, 0);
+        Screen.print("Set Time");
+        Screen.setCursor(4, 1);
+        print2digits(hour);
+        Screen.write(':');
+        print2digits(minute);
+        Screen.write(':');
+        Screen.print(second);
+
+        if (!buttonRightState) {
+            caseHour++;
+            caseHour = (caseHour + 3) % 3;
+            delay(150);
+        }
+        if (!buttonLeftState) {
+            caseHour--;
+            caseHour = (caseHour + 3) % 3;
+            delay(150);
+        }
+
+        blinkingHour(hour, minute, second);
+
+        if (!buttonUpState) {
+            switch (caseHour) { // Blink at editing position
+                case 0: {
+                    hour++;
+                    if (hour == 24) {
+                        hour = 00;
+                    }
+                    delay(150);
+                    break;
+                }
+                case 1: {
+                    minute++;
+                    if (minute == 60) {
+                        minute = 00;
+                        hour++;
+                        if (hour == 24) {
+                            hour = 00;
+                        }
+                    }
+                    delay(150);
+                    break;
+                }
+                case 2: {
+                    second++;
+                    if (second == 60) {
+                        second = 00;
+                        minute++;
+                        if (minute == 60) {
+                            minute = 00;
+                            hour++;
+                            if (hour == 24) {
+                                hour = 00;
+                            }
+                        }
+                    }
+                    delay(150);
+                    break;
+                }
+                default : {
+                    break;
+                }
+            }
+        }
+        if (!buttonDownState) {
+            switch (caseHour) { // Blink at editing position
+                case 0: {
+                    hour--;
+                    if (hour == -1) {
+                        hour = 23;
+                    }
+                    delay(150);
+                    break;
+                }
+                case 1: {
+                    minute--;
+                    if (minute == -1) {
+                        minute = 59;
+                        hour--;
+                        if (hour == -1) {
+                            hour = 23;
+                        }
+                    }
+                    delay(150);
+                    break;
+                }
+                case 2: {
+                    second--;
+                    if (second == -1) {
+                        second = 59;
+                        minute--;
+                        if (minute == -1) {
+                            minute = 59;
+                            hour--;
+                            if (hour == -1) {
+                                hour = 23;
+                            }
+                        }
+                    }
+                    delay(150);
+                    break;
+                }
+                default : {
+                    break;
+                }
+            }
+        }
+
+        checkButton();
+        delay(100);
+        if (!buttonSelectState) {
+            break;
+        }
+    }
+
+    Screen.clear();
+    caseHour = 0;
+
+    tm.Wday = wday;
+    tm.Day = day;
+    tm.Month = month;
+    tm.Year = year;
+    tm.Hour = hour;
+    tm.Minute = minute;
+    tm.Second = second;
+
+    RTC.write(tm);
+
+    Screen.clear();
+    Screen.setCursor(4, 0);
+    Screen.print("HORLOGE");
+    Screen.setCursor(5, 1);
+    Screen.print("REGLEE");
+    delay(1000);
+    return;
+}
+
+int calculateMaxDayOfMonth(int month, int year) {
+    /*
+        Function to have the last day of the month 
+
+        Args : 
+            - month : [int] 1 - 12 month value
+            - year : [int] 4 digits year
+        
+        Out : 
+            - daysInMonth[month - 1] : [int] number of day in the month of the year
+    */
+    int daysInMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    
+    if (year % 4  == 0) {
+        if (year % 100 != 0) {
+            daysInMonth[1] = 29;
+        }
+        else {
+            if (year % 400 == 0) {
+                daysInMonth[1] = 29;
+            }
+        }
+    }
+    
+    return daysInMonth[month - 1];
 }
 
 void print2digits(int number) {
