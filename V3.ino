@@ -1,7 +1,7 @@
 /*
     Projet : CAFETIERE_AUTO
     Date Creation : 22/08/2023
-    Date Revision : 07/06/2024
+    Date Revision : 11/06/2024
     Entreprise : 3SC4P3
     Auteur: Florian HOFBAUER
     Contact :
@@ -44,12 +44,13 @@ int activation = 1, durationHour = 0, durationMinute = 30, durationSecond = 0;
 int alarmHour = 6, alarmMinute = 30, alarmSecond = 0;
 int manualHour = 0, manualMinute = 0, manualSecond = 0, firstTime = 0;
 int remainHour = 0, remainMinute = 0, remainSecond = 0;
+bool repetition[7] = {0, 0, 0, 0, 0, 0, 0};
 
 /****************************************************************************
  *                           Structure for menu
  ****************************************************************************/
 
-enum menuFunction { ALARME, DUREE, ACTIVATION, MANUEL, HORLOGE, NUL };
+enum menuFunction { ALARME, DUREE, ACTIVATION, MANUEL, HORLOGE, REPETITION, NUL };
 
 struct MenuItem {
     String name;
@@ -59,7 +60,8 @@ struct MenuItem {
 };
 
 MenuItem subMenuReglage[] = { {"ALARME", ALARME, nullptr, 0}, {"DUREE", DUREE, nullptr, 0}, {"HORLOGE", HORLOGE, nullptr, 0} };
-MenuItem mainMenu[] = { {"REGLAGES", NUL, subMenuReglage, 3}, {"ACTIVATION", ACTIVATION, nullptr, 0}, {"MANUEL", MANUEL, nullptr, 0} };
+MenuItem subMenuActivation[] = { {"ON / OFF", ACTIVATION, nullptr, 0}, {"REPETITION", REPETITION, nullptr, 0} };
+MenuItem mainMenu[] = { {"REGLAGES", NUL, subMenuReglage, 3}, {"ACTIVATION", NUL, subMenuActivation, 2}, {"MANUEL", MANUEL, nullptr, 0} };
 
 MenuItem* currentMenu = mainMenu;
 int mainMenuLength = sizeof(mainMenu) / 10;
@@ -96,6 +98,10 @@ void setup() {
     alarmHour = readIntFromEEPROM(8);
     alarmMinute = readIntFromEEPROM(10);
     alarmSecond = readIntFromEEPROM(12);
+
+    for (int table = 0; table < 7; table++) {
+        repetition[table] = readIntFromEEPROM(14 + 2 * table);
+    }
 }
 
 void loop() {
@@ -113,8 +119,13 @@ void loop() {
         activateMenu();
         if (activation == 1) {
             Screen.setCursor(15, 0);
-            Screen.print("*");
-            alarm(tm.Hour, tm.Minute, tm.Second);
+            Screen.print("°");
+
+            if (repetition[tm.Wday - 1]) {
+                Screen.setCursor(15, 0);
+                Screen.print("*");
+                alarm(tm.Hour, tm.Minute, tm.Second);
+            }
         }
 
         if (manual == 1) {
@@ -305,6 +316,11 @@ void changeMenu() {
                     }
                     case HORLOGE: {
                         setTime();
+                        break;
+                    }
+                    case REPETITION: {
+                        setRepetition();
+                        saveData();
                         break;
                     }
                     default: {
@@ -723,9 +739,6 @@ void setTime() {
         day = tm.Day;
         month = tm.Month;
         year = tm.Year;
-        hour = tm.Hour;
-        minute = tm.Minute;
-        second = tm.Second;
     }
 
     while(true) {
@@ -859,6 +872,12 @@ void setTime() {
 
     Screen.clear();
     caseHour = 0;
+    
+    if (RTC.read(tm)) {
+        hour = tm.Hour;
+        minute = tm.Minute;
+        second = tm.Second;
+    }
 
     while (true) {
         // Part to change time
@@ -1002,6 +1021,68 @@ void setTime() {
     return;
 }
 
+void setRepetition() {
+    /*
+        Function to set alarm repetition
+    */
+    
+    Screen.clear();
+    Screen.setCursor(1, 0);
+    Screen.print("SET REPETITION");
+    int weekday = 0;
+
+    while(true) {
+        Screen.setCursor(4, 1);
+        Screen.print(printDay(weekday + 1));
+        Screen.setCursor(9, 1);
+        if (repetition[weekday]) {
+            Screen.print("ON ");
+        }
+        else {
+            Screen.print("OFF");
+        }
+
+        checkButton();
+        delay(150);
+
+        if (!buttonUpState || !buttonDownState) {
+            if (repetition[weekday]) {
+                repetition[weekday] = 0;
+            }
+            else {
+                repetition[weekday] = 1;
+            }
+        }
+
+        if (!buttonRightState) {
+            weekday ++;
+            if (weekday == 7) {
+                weekday = 0;
+            }
+        }
+
+        if (!buttonLeftState) {
+            weekday --;
+            if (weekday == -1) {
+                weekday = 6;
+            }
+        }
+
+        checkButton();
+        delay(100);
+
+        if (!buttonSelectState) {
+            Screen.clear();
+            Screen.setCursor(3, 0);
+            Screen.print("REPETITION");
+            Screen.setCursor(5, 1);
+            Screen.print("REGLEE");
+            delay(1000);
+            return;
+        }
+    }
+}
+
 int calculateMaxDayOfMonth(int month, int year) {
     /*
         Function to have the last day of the month 
@@ -1098,7 +1179,6 @@ void alarm(int hour, int minute, int second) {
                 setOnMode = 0;
                 Screen.clear();
                 digitalWrite(pinRelay, LOW);
-                activation = 0; // set off activation
                 delay(100);
             }
         }
@@ -1160,6 +1240,10 @@ void saveData() {
     writeIntIntoEEPROM(8, alarmHour);
     writeIntIntoEEPROM(10, alarmMinute);
     writeIntIntoEEPROM(12, alarmSecond);
+
+    for (int table = 0; table < 7; table++) {
+        writeIntIntoEEPROM(14 + 2 * table, repetition[table]);
+    }
 }
 
 void reboot() {
