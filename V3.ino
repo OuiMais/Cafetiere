@@ -1,7 +1,7 @@
 /*
     Projet : CAFETIERE_AUTO
     Date Creation : 22/08/2023
-    Date Revision : 11/06/2024
+    Date Revision : 19/06/2024
     Entreprise : 3SC4P3
     Auteur: Florian HOFBAUER
     Contact :
@@ -119,7 +119,7 @@ void loop() {
         activateMenu();
         if (activation == 1) {
             Screen.setCursor(15, 0);
-            Screen.print("°");
+            Screen.write(223);
 
             if (repetition[tm.Wday - 1]) {
                 Screen.setCursor(15, 0);
